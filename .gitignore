@@ -1,0 +1,7 @@
+venv
+*.p8
+__pycache__
+*.pyc
+.DS_Store
+client_secret*
+token.json
