@@ -5,6 +5,7 @@ from google_client import GoogleFormClient, FORM_ID
 from datetime import datetime
 import time
 import re
+from pydantic.error_wrappers import ValidationError
 
 
 def rate_limit(func):
@@ -32,9 +33,15 @@ class AppStoreConnectClient:
         )
 
     def _paginate(self, res_factory, res_url: str, *args):
-        res = self.s.get(res_url.format(*args))
-        print(res.headers.get("X-Rate-Limit"))
-        initial_response = res_factory(**res.json())
+        while True:
+            res = self.s.get(res_url.format(*args))
+            try:
+                initial_response = res_factory(**res.json())
+            except ValidationError as e:
+                print(res.text)
+                continue
+            else:
+                break
         while initial_response.links.next:
             res = self.s.get(initial_response.links.next)
             response = res_factory(**res.json())
@@ -283,8 +290,14 @@ class BusinessLogic:
 
     def start_loop(self):
         while True:
-            self.connect_client.update_token()
-            self.start_inviting()
+            print(f"Starting Loop at {datetime.now()}")
+            try:
+                self.connect_client.update_token()
+                self.start_inviting()
+            except Exception as e:
+                print(e)
+            else:
+                continue
 
 
 if __name__ == "__main__":
