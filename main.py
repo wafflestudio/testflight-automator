@@ -133,7 +133,7 @@ class AppStoreConnectClient:
             print(res.text)
 
     @rate_limit
-    def invite_user(self, invitation_request: UserInvitationCreateRequest):
+    def send_invitation(self, invitation_request: UserInvitationCreateRequest):
         res = self.s.post(
             f"{self.BASE_URL}/v1/userInvitations",
             json=invitation_request.dict(),
@@ -143,6 +143,20 @@ class AppStoreConnectClient:
             return
         else:
             print(f"Failed to invite {invitation_request.data.attributes.email}")
+            print(res.text)
+
+    @rate_limit
+    def cancel_invitation(self, invitation: UserInvitationsResponse.UserInvitation):
+        res = self.s.delete(
+            f"{self.BASE_URL}/v1/userInvitations/{invitation.id}",
+        )
+        if res.status_code == 204:
+            print(
+                f"Successfully cancelled invitation for {invitation.attributes.email}"
+            )
+            return
+        else:
+            print(f"Failed to cancel invitation for {invitation.attributes.email}")
             print(res.text)
 
 
@@ -195,7 +209,8 @@ class BusinessLogic:
             expiration_date = re.sub(r"\.\d+", "", invitation.attributes.expirationDate)
             expiration_date = datetime.strptime(expiration_date, "%Y-%m-%dT%H:%M:%S%z")
             if expiration_date < datetime.now(tz=expiration_date.tzinfo):
-                self.connect_client.invite_user(
+                self.connect_client.cancel_invitation(invitation)
+                self.connect_client.send_invitation(
                     UserInvitationCreateRequest(
                         data=UserInvitationCreateRequest.Data(
                             attributes=UserInvitationCreateRequest.Data.Attributes(
@@ -228,7 +243,7 @@ class BusinessLogic:
             if response.email in user_emails_with_pending:
                 print(f"User {response.email} already exists or has pending invitation")
                 continue
-            self.connect_client.invite_user(
+            self.connect_client.send_invitation(
                 UserInvitationCreateRequest(
                     data=UserInvitationCreateRequest.Data(
                         attributes=UserInvitationCreateRequest.Data.Attributes(
